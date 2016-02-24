@@ -1,0 +1,7 @@
+[package]
+name = "test-asm"
+version = "0.1.0"
+authors = ["Nikolay Volf <nikvolf@gmail.com>"]
+
+[dependencies]
+ethcore-util = { path = "../parity/util" }
