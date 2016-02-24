@@ -266,6 +266,18 @@ mod h256tests {
     }
 
     #[bench]
+    fn oldschool_combined(b: &mut Bencher) {
+        b.iter(|| {
+            let n = black_box(10000);
+            (0..n).fold(U256([12345u64, 0u64, 0u64, 0u64]), |old, new| {
+				let old = old.overflowing_add(U256::from(2*new)).0;
+				let old = old.overflowing_sub(U256::from(new)).0;
+				old.overflowing_mul(U256::from(new/3)).0
+			})
+        });
+    }
+
+    #[bench]
     fn add_asm_xor(b: &mut Bencher) {
         b.iter(|| {
             let n = black_box(10000);
@@ -296,4 +308,17 @@ mod h256tests {
             (0..n).fold([12345u64, 0u64, 0u64, 0u64], |old, new| { mul(old, [0, 0, 0, new]).0 })
         });
     }
+
+    #[bench]
+    fn asm_combined(b: &mut Bencher) {
+        b.iter(|| {
+            let n = black_box(10000);
+            (0..n).fold([12345u64, 0u64, 0u64, 0u64], |old, new| {
+				let add1 = add ([0, 0, 0, 2 * new], old).0;
+				let sub1 = sub (add1, [0, 0, 0, new]).0;
+				mul(sub1, [0, 0, 0, new/3]).0
+			})
+        });
+    }
+
 }
