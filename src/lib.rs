@@ -82,73 +82,82 @@ mod h256tests {
             asm!("
 				mov $5, %rax
 				mulq $9
-				mov %rax, %r8
-				adc $6, %rdx
-				pushf
+				mov %rax, $0
+				mov %rdx, $1
 
-				mov %rdx, %rax
+				mov $6, %rax
 				mulq $9
-				popf
-				adc $$0, %rax
-				adc $7, %rdx
-				pushf
-				mov %rax, %r9
+				add %rax, $1
+				mov %rdx, $2
 
+				mov $5, %rax
+				mulq $10
+				add %rax, $1
+				adc %rdx, $2
 
-				mov %rdx, %rax
+				mov $6, %rax
+				mulq $10
+				add %rax, $2
+				mov %rdx, $3
+
+				mov $7, %rax
 				mulq $9
-				popf
-				adc $$0, %rax
-				adc $8, %rdx
-				pushf
-				mov %rax, %r10
+				add %rax, $2
+				adc %rdx, $3
 
-				mov %rdx, %rax
+				mov $5, %rax
+				mulq $11
+    			add %rax, $2
+				adc %rdx, $3
+
+				mov $8, %rax
 				mulq $9
-				popf
-				adc $$0, %rax
-				mov %rax, %r11
+				adc %rax, $3
+				adc $$0, %rdx
 				mov %rdx, %rcx
 
-				mov $5, %rax
+				mov $7, %rax
 				mulq $10
-				adc %rax, %r9
-				adc $6, %rdx
-				pushf
+				add %rax, $3
+				adc $$0, %rdx
+				or %rdx, %rcx
 
-				mov %rdx, %rax
-				mulq $10
-				popf
-				adc %rax, %r10
-				adc $7, %rdx
-				pushf
-
-				mov %rdx, %rax
-				mulq $10
-				popf
-				adc %rax, %r11
-				pushf
-				or %rax, %rcx
-
-				mov $5, %rax
+				mov $6, %rax
 				mulq $11
-				popf
-				adc %rax, %r10
-				adc $6, %rdx
-				pushf
-
-				mov %rdx, %rax
-				mulq $11
-				popf
-				adc %rax, %r11
-				pushf
+				add %rax, $3
+				adc $$0, %rdx
 				or %rdx, %rcx
 
 				mov $5, %rax
 				mulq $12
-				popf
-				adc %rax, %r11
-			    or %rdx, %rcx
+				add %rax, $3
+				adc $$0, %rdx
+				or %rdx, %rcx
+
+                cmpq $$0, %rcx
+				jne 2f
+
+				mov $8, %rax
+				cmpq $$0, %rax
+				setne %cl
+
+				mov $7, %rax
+				cmpq $$0, %rax
+				setne %dl
+				or %dl, %cl
+
+				mov $3, %rax
+				cmpq $$0, %rax
+				setne %dl
+
+				mov $2, %rax
+				cmpq $$0, %rax
+			    setne %bl
+			    or %bl, %dl
+
+			    and %dl, %cl
+
+			    2:
                 "
             : /* $0 */ "={r8}"(result[0]), /* $1 */ "={r9}"(result[1]), /* $2 */ "={r10}"(result[2]),
 			  /* $3 */ "={r11}"(result[3]), /* $4 */  "={rcx}"(overflow)
@@ -156,7 +165,7 @@ mod h256tests {
             : /* $5 */ "m"(p1[0]), /* $6 */ "m"(p1[1]), /* $7 */  "m"(p1[2]),
 			  /* $8 */ "m"(p1[3]), /* $9 */ "m"(p2[0]), /* $10 */ "m"(p2[1]),
 			  /* $11 */ "m"(p2[2]), /* $12 */ "m"(p2[3])
-            : "rax", "rdx"
+            : "rax", "rdx", "rbx"
             :
             );
         }
@@ -236,9 +245,56 @@ mod h256tests {
         let (result, _) = mul([0, 0, 1, 0], [0, 5, 0, 0]);
         assert_eq!([0, 0, 0, 5], result);
 
+        let (result, _) = mul([0, 0, 8, 0], [0, 0, 6, 0]);
+        assert_eq!([0, 0, 0, 0], result);
+
         let (result, _) = mul([2, 0, 0, 0], [0, 5, 0, 0]);
         assert_eq!([0, 10, 0, 0], result);
+
+        let (result, _) = mul([::std::u64::MAX, 0, 0, 0], [::std::u64::MAX, 0, 0, 0]);
+        assert_eq!([1, ::std::u64::MAX-1, 0, 0], result);
+
+        let (result, _) = mul([0, 0, 0, ::std::u64::MAX], [0, 0, 0, ::std::u64::MAX]);
+        assert_eq!([0, 0, 0, 0], result);
+
+        let (result, _) = mul([1, 0, 0, 0], [0, 0, 0, ::std::u64::MAX]);
+        assert_eq!([0, 0, 0, ::std::u64::MAX], result);
+
+        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX],
+                              [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]);
+        assert_eq!([1, 0, 0, 0], result);
+
 	}
+
+    #[test]
+    fn it_multiplies_overflow_correct() {
+        let (_, overflow) = mul([1, 0, 0, 0], [0, 0, 0, 0]);
+        assert!(!overflow);
+
+        let (_, overflow) = mul([1, 0, 0, 0], [0, 0, 0, ::std::u64::MAX]);
+        assert!(!overflow);
+
+        let (_, overflow) = mul([0, 1, 0, 0], [0, 1, 0, ::std::u64::MAX]);
+        assert!(!overflow);
+
+        let (_, overflow) = mul([0, 1, 0, 0], [0, 1, 0, 0]);
+        assert!(!overflow);
+
+        let (_, overflow) = mul([0, 1, 0, ::std::u64::MAX], [0, 1, 0, ::std::u64::MAX]);
+        assert!(overflow);
+
+        let (_, overflow) = mul([0, ::std::u64::MAX, 0, 0], [0, ::std::u64::MAX, 0, 0]);
+        assert!(!overflow);
+
+        let (_, overflow) = mul([1, 0, 0, 0], [10, 0, 0, 0]);
+        assert!(!overflow);
+
+        let (_, overflow) = mul([2, 0, 0, 0], [10, 0, 0, ::std::u64::MAX / 2]);
+        assert!(!overflow);
+
+        let (result, overflow) = mul([0, 0, 8, 0], [0, 0, 6, 0]);
+        assert!(overflow);
+    }
 
     #[bench]
     fn add_oldschool_u256(b: &mut Bencher) {
