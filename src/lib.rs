@@ -75,6 +75,40 @@ mod h256tests {
         (result, overflow != 0)
 	}
 
+    #[inline(always)]
+    fn add_512(self_t: [u64; 8], other_t: [u64; 8]) -> ([u64; 8], bool) {
+        let mut result: [u64; 8] = unsafe { mem::uninitialized() };
+        let overflow: u64;
+
+        unsafe {
+            asm!("
+                adc $17, $0
+                adc $18, $1
+                adc $19, $2
+                adc $20, $3
+                adc $21, $4
+                adc $22, $5
+                adc $23, $6
+                adc $24, $7
+                setc %al
+                "
+            : "=r"(result[0]), "=r"(result[1]), "=r"(result[2]), "=r"(result[3]),
+              "=r"(result[4]), "=r"(result[5]), "=r"(result[6]), "=r"(result[7]),
+
+              "={al}"(overflow)
+
+            : "0"(self_t[0]), "1"(self_t[1]), "2"(self_t[2]), "3"(self_t[3]),
+              "4"(self_t[4]), "5"(self_t[5]), "6"(self_t[6]), "7"(self_t[7]),
+
+			  "mr"(other_t[0]), "mr"(other_t[1]), "mr"(other_t[2]), "mr"(other_t[3]),
+              "mr"(other_t[4]), "mr"(other_t[5]), "mr"(other_t[6]), "mr"(other_t[7])
+            :
+            :
+            );
+        }
+        (result, overflow != 0)
+    }
+
 	fn mul(p1: [u64; 4], p2: [u64; 4]) -> ([u64; 4], bool) {
         let mut result: [u64; 4] = unsafe { mem::uninitialized() };
         let overflow: u64;
@@ -198,6 +232,33 @@ mod h256tests {
 
 
     #[test]
+    fn it_adds_512() {
+        let (result, _) = add_512([0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(result, [0, 0, 0, 0, 0, 0, 0, 0]);
+
+        let (result, _) = add_512([1, 0, 0, 0, 0, 0, 0, 1], [1, 0, 0, 0, 0, 0, 0, 1]);
+        assert_eq!(result, [2, 0, 0, 0, 0, 0, 0, 2]);
+
+        let (result, _) = add_512([0, 0, 0, 0, 0, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 1]);
+        assert_eq!(result, [0, 0, 0, 0, 0, 0, 0, 2]);
+
+        let (result, _) = add_512([0, 0, 0, 0, 0, 0, 2, 1], [0, 0, 0, 0, 0, 0, 3, 1]);
+        assert_eq!(result, [0, 0, 0, 0, 0, 0, 5, 2]);
+
+        let (result, overflow) = add_512([0, 0, 0, 0, 0, 0, 2, 1], [0, 0, 0, 0, 0, 0, 3, 1]);
+        assert_eq!(result, [0, 0, 0, 0, 0, 0, 5, 2]);
+        assert!(!overflow);
+
+        let (_, overflow) = add_512([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX],
+                                    [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]);
+        assert!(overflow);
+
+        let (_, overflow) = add_512([0, 0, 0, 0, 0, 0, 0, ::std::u64::MAX],
+                                    [0, 0, 0, 0, 0, 0, 0, ::std::u64::MAX]);
+        assert!(overflow);
+    }
+
+    #[test]
     fn it_substracts() {
         let (result, _) = sub([0, 0, 0, 0], [0, 0, 0, 0]);
         assert_eq!(result, [0, 0, 0, 0]);
@@ -263,7 +324,6 @@ mod h256tests {
         let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX],
                               [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]);
         assert_eq!([1, 0, 0, 0], result);
-
 	}
 
     #[test]
@@ -301,6 +361,16 @@ mod h256tests {
         b.iter(|| {
             let n = black_box(10000);
             (0..n).fold(U256::zero(), |old, new| { old.overflowing_add(U256::from(new)).0 })
+        });
+    }
+
+    #[bench]
+    fn add_oldschool_u512(b: &mut Bencher) {
+        b.iter(|| {
+            let n = black_box(10000);
+            (0..n).fold(U512([12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64]),
+                             |old, new| { old.overflowing_add(
+                                 U512([9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64])).0 })
         });
     }
 
@@ -362,6 +432,16 @@ mod h256tests {
         b.iter(|| {
             let n = black_box(10000);
             (0..n).fold([12345u64, 0u64, 0u64, 0u64], |old, new| { mul(old, [0, 0, 0, new]).0 })
+        });
+    }
+
+
+    #[bench]
+    fn asm_add_512(b: &mut Bencher) {
+        b.iter(|| {
+            let n = black_box(10000);
+            (0..n).fold([12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64],
+                        |old, new| { add_512(old, [9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64]).0 })
         });
     }
 
