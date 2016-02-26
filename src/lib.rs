@@ -137,25 +137,17 @@ mod h256tests {
                 cmpq $$0, %rcx
 				jne 2f
 
-				mov $8, %rax
-				cmpq $$0, %rax
-				setne %cl
+				popcnt $8, %rcx
+				popcnt $7, %rax
+				add %rax, %rcx
+				jrcxz 2f
 
-				mov $7, %rax
-				cmpq $$0, %rax
-				setne %dl
-				or %dl, %cl
+				popcnt $12, %rcx
+				popcnt $11, %rax
+				add %rax, %rcx
+				jrcxz 2f
 
-				mov $3, %rax
-				cmpq $$0, %rax
-				setne %dl
-
-				mov $2, %rax
-				cmpq $$0, %rax
-			    setne %bl
-			    or %bl, %dl
-
-			    and %dl, %cl
+				mov $$1, %rcx
 
 			    2:
                 "
@@ -292,7 +284,10 @@ mod h256tests {
         let (_, overflow) = mul([2, 0, 0, 0], [10, 0, 0, ::std::u64::MAX / 2]);
         assert!(!overflow);
 
-        let (result, overflow) = mul([0, 0, 8, 0], [0, 0, 6, 0]);
+        let (_, overflow) = mul([0, 0, 0, 8], [0, 0, 0, 8]);
+        assert!(overflow);
+
+        let (_, overflow) = mul([0, 0, 8, 0], [0, 0, 6, 0]);
         assert!(overflow);
     }
 
