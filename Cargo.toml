@@ -7,4 +7,4 @@ authors = ["Nikolay Volf <nikvolf@gmail.com>"]
 ethcore-util = { path = "../parity/util" }
 
 [features]
-default = ["ethcore-util/dev"]
+default = ["ethcore-util/x64asm"]

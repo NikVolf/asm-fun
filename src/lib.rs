@@ -40,7 +40,7 @@ mod h256tests {
         let overflow: u8;
         unsafe {
             asm!("
-                adc $9, %r8
+                add $9, %r8
                 adc $10, %r9
                 adc $11, %r10
                 adc $12, %r11
@@ -60,7 +60,7 @@ mod h256tests {
         let overflow: u8;
         unsafe {
             asm!("
-                sbb $9, %r8
+                sub $9, %r8
                 sbb $10, %r9
                 sbb $11, %r10
                 sbb $12, %r11
@@ -82,27 +82,81 @@ mod h256tests {
 
         unsafe {
             asm!("
-                adc $17, $0
-                adc $18, $1
-                adc $19, $2
-                adc $20, $3
-                adc $21, $4
-                adc $22, $5
-                adc $23, $6
-                adc $24, $7
-                setc %al
+            	add $15, $0
+            	adc $16, $1
+            	adc $17, $2
+            	adc $18, $3
+            	lodsq
+            	adc $11, %rax
+            	stosq
+            	lodsq
+            	adc $12, %rax
+            	stosq
+            	lodsq
+            	adc $13, %rax
+            	stosq
+            	lodsq
+            	adc $14, %rax
+            	stosq
+            	setc %al
                 "
             : "=r"(result[0]), "=r"(result[1]), "=r"(result[2]), "=r"(result[3]),
-              "=r"(result[4]), "=r"(result[5]), "=r"(result[6]), "=r"(result[7]),
 
-              "={al}"(overflow)
+			  "={al}"(overflow) /* $0 - $4 */
 
-            : "0"(self_t[0]), "1"(self_t[1]), "2"(self_t[2]), "3"(self_t[3]),
-              "4"(self_t[4]), "5"(self_t[5]), "6"(self_t[6]), "7"(self_t[7]),
+            : "{rdi}"(&result[4] as *const u64) /* $5 */
+			  "{rsi}"(&other_t[4] as *const u64) /* $6 */
+			  "0"(self_t[0]), "1"(self_t[1]), "2"(self_t[2]), "3"(self_t[3]),
+              "m"(self_t[4]), "m"(self_t[5]), "m"(self_t[6]), "m"(self_t[7]),
+			  /* $7 - $14 */
 
-			  "mr"(other_t[0]), "mr"(other_t[1]), "mr"(other_t[2]), "mr"(other_t[3]),
-              "mr"(other_t[4]), "mr"(other_t[5]), "mr"(other_t[6]), "mr"(other_t[7])
+			  "m"(other_t[0]), "m"(other_t[1]), "m"(other_t[2]), "m"(other_t[3]),
+              "m"(other_t[4]), "m"(other_t[5]), "m"(other_t[6]), "m"(other_t[7]) /* $15 - $22 */
+            : "rdi", "rsi"
             :
+            );
+        }
+        (result, overflow != 0)
+    }
+
+    #[inline(always)]
+    fn sub_512(self_t: [u64; 8], other_t: [u64; 8]) -> ([u64; 8], bool) {
+        let mut result: [u64; 8] = unsafe { mem::uninitialized() };
+        let overflow: u64;
+
+        unsafe {
+            asm!("
+            	sub $15, $0
+            	sbb $16, $1
+            	sbb $17, $2
+            	sbb $18, $3
+            	lodsq
+            	sbb $19, %rax
+            	stosq
+            	lodsq
+            	sbb $20, %rax
+            	stosq
+            	lodsq
+            	sbb $21, %rax
+            	stosq
+            	lodsq
+            	sbb $22, %rax
+            	stosq
+            	setb %al
+                "
+            : "=r"(result[0]), "=r"(result[1]), "=r"(result[2]), "=r"(result[3]),
+
+			  "={al}"(overflow) /* $0 - $4 */
+
+            : "{rdi}"(&result[4] as *const u64) /* $5 */
+			  "{rsi}"(&self_t[4] as *const u64) /* $6 */
+			  "0"(self_t[0]), "1"(self_t[1]), "2"(self_t[2]), "3"(self_t[3]),
+              "m"(self_t[4]), "m"(self_t[5]), "m"(self_t[6]), "m"(self_t[7]),
+			  /* $7 - $14 */
+
+			  "m"(other_t[0]), "m"(other_t[1]), "m"(other_t[2]), "m"(other_t[3]),
+              "m"(other_t[4]), "m"(other_t[5]), "m"(other_t[6]), "m"(other_t[7]) /* $15 - $22 */
+            : "rdi", "rsi"
             :
             );
         }
@@ -119,72 +173,88 @@ mod h256tests {
 				mov %rax, $0
 				mov %rdx, $1
 
-				mov $6, %rax
-				mulq $9
+				mov $5, %rax
+				mulq $10
 				add %rax, $1
+				adc $$0, %rdx
 				mov %rdx, $2
 
 				mov $5, %rax
-				mulq $10
-				add %rax, $1
-				adc %rdx, $2
-
-				mov $6, %rax
-				mulq $10
+				mulq $11
 				add %rax, $2
+				adc $$0, %rdx
 				mov %rdx, $3
-
-				mov $7, %rax
-				mulq $9
-				add %rax, $2
-				adc %rdx, $3
-
-				mov $5, %rax
-				mulq $11
-    			add %rax, $2
-				adc %rdx, $3
-
-				mov $8, %rax
-				mulq $9
-				adc %rax, $3
-				adc $$0, %rdx
-				mov %rdx, %rcx
-
-				mov $7, %rax
-				mulq $10
-				add %rax, $3
-				adc $$0, %rdx
-				or %rdx, %rcx
-
-				mov $6, %rax
-				mulq $11
-				add %rax, $3
-				adc $$0, %rdx
-				or %rdx, %rcx
 
 				mov $5, %rax
 				mulq $12
 				add %rax, $3
 				adc $$0, %rdx
+				mov %rdx, %rcx
+
+				mov $6, %rax
+				mulq $9
+				add %rax, $1
+				adc %rdx, $2
+
+				mov $6, %rax
+				mulq $10
+				adc %rdx, $3
+				add %rax, $2
+
+				mov $6, %rax
+				mulq $11
+				adc %rax, $3
+				adc $$0, %rdx
 				or %rdx, %rcx
 
-                cmpq $$0, %rcx
+				mov $7, %rax
+				mulq $9
+				add %rax, $2
+				adc %rdx, $3
+
+				mov $7, %rax
+				mulq $10
+				adc $$0, %rdx
+				or %rdx, %rcx
+				add %rax, $3
+
+				mov $8, %rax
+				mulq $9
+				add %rax, $3
+				adc $$0, %rdx
+				or %rdx, %rcx
+
+				cmpq $$0, %rcx
 				jne 2f
 
 				popcnt $8, %rcx
-				popcnt $7, %rax
-				add %rax, %rcx
-				jrcxz 2f
+				jrcxz 12f
 
 				popcnt $12, %rcx
 				popcnt $11, %rax
 				add %rax, %rcx
+				popcnt $10, %rax
+				add %rax, %rcx
+				jmp 2f
+
+				12:
+				popcnt $12, %rcx
+				jrcxz 11f
+
+				popcnt $7, %rcx
+				popcnt $6, %rax
+				add %rax, %rcx
+
+				cmpq $$0, %rcx
+				jne 2f
+
+				11:
+				popcnt $11, %rcx
 				jrcxz 2f
+				popcnt $7, %rcx
 
-				mov $$1, %rcx
-
-			    2:
-                "
+				2:
+				"
             : /* $0 */ "={r8}"(result[0]), /* $1 */ "={r9}"(result[1]), /* $2 */ "={r10}"(result[2]),
 			  /* $3 */ "={r11}"(result[3]), /* $4 */  "={rcx}"(overflow)
 
@@ -237,6 +307,9 @@ mod h256tests {
         let (result, _) = add_512([0, 0, 0, 0, 0, 0, 2, 1], [0, 0, 0, 0, 0, 0, 3, 1]);
         assert_eq!(result, [0, 0, 0, 0, 0, 0, 5, 2]);
 
+        let (result, _) = add_512([1, 2, 3, 4, 5, 6, 7, 8], [9, 10, 11, 12, 13, 14, 15, 16]);
+        assert_eq!(result, [10, 12, 14, 16, 18, 20, 22, 24]);
+
         let (result, overflow) = add_512([0, 0, 0, 0, 0, 0, 2, 1], [0, 0, 0, 0, 0, 0, 3, 1]);
         assert_eq!(result, [0, 0, 0, 0, 0, 0, 5, 2]);
         assert!(!overflow);
@@ -275,6 +348,22 @@ mod h256tests {
         assert_eq!([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0], result);
     }
 
+    #[test]
+    fn it_substracts_512() {
+        let (result, _) = sub_512([0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(result, [0, 0, 0, 0, 0, 0, 0, 0]);
+
+        let (result, _) = sub_512([10, 9, 8, 7, 6, 5, 4, 3], [9, 8, 7, 6, 5, 4, 3, 2]);
+        assert_eq!(result, [1, 1, 1, 1, 1, 1, 1, 1]);
+
+        let (_, overflow) = sub_512([10, 9, 8, 7, 6, 5, 4, 3], [9, 8, 7, 6, 5, 4, 3, 2]);
+        assert!(!overflow);
+
+        let (_, overflow) = sub_512([9, 8, 7, 6, 5, 4, 3, 2], [10, 9, 8, 7, 6, 5, 4, 3]);
+        assert!(overflow);
+
+    }
+
 	#[test]
 	fn it_multiplies() {
         let (result, _) = mul([0, 0, 0, 0], [0, 0, 0, 0]);
@@ -289,23 +378,75 @@ mod h256tests {
         let (result, _) = mul([0, 5, 0, 0], [0, 5, 0, 0]);
         assert_eq!([0, 0, 25, 0], result);
 
-        let (result, _) = mul([0, 0, 0, 1], [1, 0, 0, 0]);
-        assert_eq!([0, 0, 0, 1], result);
+        let (result, _) = mul([0, 0, 0, 4], [4, 0, 0, 0]);
+        assert_eq!([0, 0, 0, 16], result);
 
         let (result, _) = mul([0, 0, 0, 5], [2, 0, 0, 0]);
         assert_eq!([0, 0, 0, 10], result);
 
-        let (result, _) = mul([0, 0, 1, 0], [0, 5, 0, 0]);
-        assert_eq!([0, 0, 0, 5], result);
+        let (result, _) = mul([0, 0, 2, 0], [0, 5, 0, 0]);
+        assert_eq!([0, 0, 0, 10], result);
+
+        let (result, _) = mul([0, 3, 0, 0], [0, 0, 3, 0]);
+        assert_eq!([0, 0, 0, 9], result);
 
         let (result, _) = mul([0, 0, 8, 0], [0, 0, 6, 0]);
         assert_eq!([0, 0, 0, 0], result);
 
-        let (result, _) = mul([2, 0, 0, 0], [0, 5, 0, 0]);
-        assert_eq!([0, 10, 0, 0], result);
+        let (result, _) = mul([9, 0, 0, 0], [0, 3, 0, 0]);
+        assert_eq!([0, 27, 0, 0], result);
 
         let (result, _) = mul([::std::u64::MAX, 0, 0, 0], [::std::u64::MAX, 0, 0, 0]);
         assert_eq!([1, ::std::u64::MAX-1, 0, 0], result);
+
+        let (result, _) = mul([0, ::std::u64::MAX, 0, 0], [::std::u64::MAX, 0, 0, 0]);
+        assert_eq!([0, 1, ::std::u64::MAX-1, 0], result);
+
+        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, 0, 0], [::std::u64::MAX, 0, 0, 0]);
+        assert_eq!([1, ::std::u64::MAX, ::std::u64::MAX-1, 0], result);
+
+        let (result, _) = mul([::std::u64::MAX, 0, 0, 0], [::std::u64::MAX, ::std::u64::MAX, 0, 0]);
+        assert_eq!([1, ::std::u64::MAX, ::std::u64::MAX-1, 0], result);
+
+        let (result, _) = mul([::std::u64::MAX, 0, 0, 0], [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]);
+        assert_eq!([1, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX-1], result);
+
+        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0], [::std::u64::MAX, 0, 0, 0]);
+        assert_eq!([1, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX-1], result);
+
+        let (result, _) = mul([::std::u64::MAX, 0, 0, 0], [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]);
+        assert_eq!([1, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX], result);
+
+        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX], [::std::u64::MAX, 0, 0, 0]);
+        assert_eq!([1, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX], result);
+
+        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX],
+                              [::std::u64::MAX, ::std::u64::MAX, 0, 0]);
+        assert_eq!([1, 0, ::std::u64::MAX, ::std::u64::MAX], result);
+
+        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, 0, 0],
+							  [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]);
+        assert_eq!([1, 0, ::std::u64::MAX, ::std::u64::MAX], result);
+
+        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, 0, 0],
+							  [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]);
+        assert_eq!([1, 0, ::std::u64::MAX, ::std::u64::MAX-1], result);
+
+        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0],
+							  [::std::u64::MAX, ::std::u64::MAX, 0, 0]);
+        assert_eq!([1, 0, ::std::u64::MAX, ::std::u64::MAX-1], result);
+
+        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0],
+							  [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]);
+        assert_eq!([1, 0, 0, ::std::u64::MAX-1], result);
+
+        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0],
+							  [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]);
+        assert_eq!([1, 0, 0, ::std::u64::MAX], result);
+
+        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX],
+							  [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]);
+        assert_eq!([1, 0, 0, ::std::u64::MAX], result);
 
         let (result, _) = mul([0, 0, 0, ::std::u64::MAX], [0, 0, 0, ::std::u64::MAX]);
         assert_eq!([0, 0, 0, 0], result);
@@ -316,6 +457,7 @@ mod h256tests {
         let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX],
                               [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]);
         assert_eq!([1, 0, 0, 0], result);
+
 	}
 
     #[test]
@@ -327,7 +469,7 @@ mod h256tests {
         assert!(!overflow);
 
         let (_, overflow) = mul([0, 1, 0, 0], [0, 1, 0, ::std::u64::MAX]);
-        assert!(!overflow);
+        assert!(overflow);
 
         let (_, overflow) = mul([0, 1, 0, 0], [0, 1, 0, 0]);
         assert!(!overflow);
@@ -365,6 +507,16 @@ mod h256tests {
             let n = black_box(10000);
             (0..n).fold(U512([12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64]),
                              |old, new| { old.overflowing_add(
+                                 U512([9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64])).0 })
+        });
+    }
+
+    #[bench]
+    fn sub_oldschool_u512(b: &mut Bencher) {
+        b.iter(|| {
+            let n = black_box(10000);
+            (0..n).fold(U512([12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64]),
+                             |old, new| { old.overflowing_sub(
                                  U512([9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64])).0 })
         });
     }
@@ -437,6 +589,15 @@ mod h256tests {
             let n = black_box(10000);
             (0..n).fold([12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64],
                         |old, new| { add_512(old, [9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64]).0 })
+        });
+    }
+
+    #[bench]
+    fn asm_sub_512(b: &mut Bencher) {
+        b.iter(|| {
+            let n = black_box(10000);
+            (0..n).fold([12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64, 12345u64],
+                        |old, new| { sub_512(old, [9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64, 9321u64]).0 })
         });
     }
 
