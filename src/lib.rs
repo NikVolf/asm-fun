@@ -273,6 +273,139 @@ mod h256tests {
         (result, overflow > 0)
 	}
 
+	fn mul_512(p1: [u64; 4], p2: [u64; 4]) -> [u64; 8] {
+        let mut result: [u64; 8] = unsafe { mem::uninitialized() };
+        let overflow: u64;
+        unsafe {
+            asm!("
+				mov $8, %rax
+				mulq $12
+				mov %rax, $0
+				mov %rdx, $1
+
+				mov $8, %rax
+				mulq $13
+				add %rax, $1
+				adc $$0, %rdx
+				mov %rdx, $2
+
+				mov $8, %rax
+				mulq $14
+				add %rax, $2
+				adc $$0, %rdx
+				mov %rdx, $3
+
+				mov $8, %rax
+				mulq $15
+				add %rax, $3
+				adc $$0, %rdx
+				mov %rdx, $4
+
+				mov $9, %rax
+				mulq $12
+				add %rax, $1
+				adc %rdx, $2
+				adc $$0, $3
+				adc $$0, $4
+				xor $5, $5
+				adc $$0, $5
+				xor $6, $6
+				adc $$0, $6
+				xor $7, $7
+				adc $$0, $7
+
+				mov $9, %rax
+				mulq $13
+				add %rax, $2
+				adc %rdx, $3
+				adc $$0, $4
+				adc $$0, $5
+				adc $$0, $6
+				adc $$0, $7
+
+				mov $9, %rax
+				mulq $14
+				add %rax, $4
+				adc %rcx, $5
+				adc $$0, $6
+				adc $$0, $7
+
+				mov $9, %rax
+				mulq $15
+				add %rax, $5
+				adc %rdx, $6
+				adc $$0, $7
+
+				mov $10, %rax
+				mulq $12
+				add %rax, $2
+				adc %rdx, $3
+				adc $$0, $4
+				adc $$0, $5
+				adc $$0, $6
+				adc $$0, $7
+
+				mov $10, %rax
+				mulq $13
+				add %rax, $3
+				adc %rdx, $4
+				adc $$0, $5
+				adc $$0, $6
+				adc $$0, $7
+
+				mov $10, %rax
+				mulq $14
+				add %rax, $4
+				adc %rdx, $5
+				adc $$0, $6
+				adc $$0, $7
+
+				mov $10, %rax
+				mulq $15
+				add %rax, $5
+				adc %rdx, $6
+				adc $$0, $7
+
+				mov $11, %rax
+				mulq $12
+				add %rax, $3
+				adc %rdx, $4
+				adc $$0, $5
+				adc $$0, $6
+				adc $$0, $7
+
+				mov $11, %rax
+				mulq $13
+				add %rax, $4
+				adc %rdx, $5
+				adc $$0, $6
+				adc $$0, $7
+
+				mov $11, %rax
+				mulq $14
+				add %rax, $5
+				adc %rdx, $6
+				adc $$0, $7
+
+				mov $11, %rax
+				mulq $15
+				add %rax, $6
+				adc %rdx, $7
+				"
+            : /* $0 */ "={r8}"(result[0]), /* $1 */ "={r9}"(result[1]), /* $2 */ "={r10}"(result[2]),
+			  /* $3 */ "={r11}"(result[3]), /* $4 */ "={r12}"(result[4]), /* $5 */ "={r13}"(result[5]),
+			  /* $6 */ "={r14}"(result[6]), /* $7 */ "={r15}"(result[7])
+
+            : /* $8 */ "m"(p1[0]), /* $9 */ "m"(p1[1]), /* $10 */  "m"(p1[2]),
+			  /* $11 */ "m"(p1[3]), /* $12 */ "m"(p2[0]), /* $13 */ "m"(p2[1]),
+			  /* $14 */ "m"(p2[2]), /* $15 */ "m"(p2[3])
+            : "rax", "rdx"
+            :
+            );
+        }
+        result
+	}
+
     #[test]
     fn it_adds() {
         let (result, _) = add([0, 0, 0, 0], [0, 0, 0, 0]);
@@ -466,6 +599,107 @@ mod h256tests {
         let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX],
                               [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]);
         assert_eq!([1, 0, 0, 0], result);
+
+	}
+
+
+	#[test]
+	fn it_multiplies_512() {
+        let result = mul_512([0, 0, 0, 0], [0, 0, 0, 0]);
+        assert_eq!([0, 0, 0, 0, 0, 0, 0, 0], result);
+
+        let result = mul_512([1, 0, 0, 0], [1, 0, 0, 0]);
+        assert_eq!([1, 0, 0, 0, 0, 0, 0, 0], result);
+
+        let result = mul_512([5, 0, 0, 0], [5, 0, 0, 0]);
+        assert_eq!([25, 0, 0, 0, 0, 0, 0, 0], result);
+
+        let result = mul_512([0, 5, 0, 0], [0, 5, 0, 0]);
+        assert_eq!([0, 0, 25, 0, 0, 0, 0, 0], result);
+
+        let result = mul_512([0, 0, 0, 4], [4, 0, 0, 0]);
+        assert_eq!([0, 0, 0, 16, 0, 0, 0, 0], result);
+
+        let result = mul_512([0, 0, 0, 5], [2, 0, 0, 0]);
+        assert_eq!([0, 0, 0, 10, 0, 0, 0, 0], result);
+
+        let result = mul_512([0, 0, 2, 0], [0, 5, 0, 0]);
+        assert_eq!([0, 0, 0, 10, 0, 0, 0, 0], result);
+
+        let result = mul_512([0, 3, 0, 0], [0, 0, 3, 0]);
+        assert_eq!([0, 0, 0, 9, 0, 0, 0, 0], result);
+
+        let result = mul_512([0, 0, 8, 0], [0, 0, 6, 0]);
+        assert_eq!([0, 0, 0, 0, 0, 0, 0, 0], result);
+
+        let result = mul_512([9, 0, 0, 0], [0, 3, 0, 0]);
+        assert_eq!([0, 27, 0, 0, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, 0, 0, 0], [::std::u64::MAX, 0, 0, 0]);
+        assert_eq!([1, ::std::u64::MAX-1, 0, 0, 0, 0, 0, 0], result);
+
+        let result = mul_512([0, ::std::u64::MAX, 0, 0], [::std::u64::MAX, 0, 0, 0]);
+        assert_eq!([0, 1, ::std::u64::MAX-1, 0, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, ::std::u64::MAX, 0, 0], [::std::u64::MAX, 0, 0, 0]);
+        assert_eq!([1, ::std::u64::MAX, ::std::u64::MAX-1, 0, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, 0, 0, 0], [::std::u64::MAX, ::std::u64::MAX, 0, 0]);
+        assert_eq!([1, ::std::u64::MAX, ::std::u64::MAX-1, 0, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, ::std::u64::MAX, 0, 0],
+							  [::std::u64::MAX, ::std::u64::MAX, 0, 0]);
+        assert_eq!([1, 0, ::std::u64::MAX-1, ::std::u64::MAX, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, 0, 0, 0], [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]);
+        assert_eq!([1, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX-1, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0], [::std::u64::MAX, 0, 0, 0]);
+        assert_eq!([1, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX-1, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, 0, 0, 0], [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]);
+        assert_eq!([1, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX], [::std::u64::MAX, 0, 0, 0]);
+        assert_eq!([1, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0],
+							  [::std::u64::MAX, ::std::u64::MAX, 0, 0]);
+        assert_eq!([1, 0, ::std::u64::MAX, ::std::u64::MAX-1, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, ::std::u64::MAX, 0, 0],
+							  [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]);
+        assert_eq!([1, 0, ::std::u64::MAX, ::std::u64::MAX-1, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX],
+                              [::std::u64::MAX, ::std::u64::MAX, 0, 0]);
+        assert_eq!([1, 0, ::std::u64::MAX, ::std::u64::MAX, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, ::std::u64::MAX, 0, 0],
+							  [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]);
+        assert_eq!([1, 0, ::std::u64::MAX, ::std::u64::MAX, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0],
+							  [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]);
+        assert_eq!([1, 0, 0, ::std::u64::MAX-1, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0],
+							  [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]);
+        assert_eq!([1, 0, 0, ::std::u64::MAX, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX],
+							  [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]);
+        assert_eq!([1, 0, 0, ::std::u64::MAX, 0, 0, 0, 0], result);
+
+        let result = mul_512([0, 0, 0, ::std::u64::MAX], [0, 0, 0, ::std::u64::MAX]);
+        assert_eq!([0, 0, 0, 0, 0, 0, 0, 0], result);
+
+        let result = mul_512([1, 0, 0, 0], [0, 0, 0, ::std::u64::MAX]);
+        assert_eq!([0, 0, 0, ::std::u64::MAX, 0, 0, 0, 0], result);
+
+        let result = mul_512([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX],
+                              [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]);
+        assert_eq!([1, 0, 0, 0, 0, 0, 0, 0], result);
 
 	}
 
