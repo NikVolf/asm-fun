@@ -195,15 +195,20 @@ mod h256tests {
 				mulq $9
 				add %rax, $1
 				adc %rdx, $2
+				adc $$0, $3
+				adc $$0, %rcx
 
 				mov $6, %rax
 				mulq $10
-				adc %rdx, $3
 				add %rax, $2
+				adc %rdx, $3
+				adc $$0, %rcx
+				adc $$0, $3
+				adc $$0, %rcx
 
 				mov $6, %rax
 				mulq $11
-				adc %rax, $3
+				add %rax, $3
 				adc $$0, %rdx
 				or %rdx, %rcx
 
@@ -211,17 +216,17 @@ mod h256tests {
 				mulq $9
 				add %rax, $2
 				adc %rdx, $3
+				adc $$0, %rcx
 
 				mov $7, %rax
 				mulq $10
+				add %rax, $3
 				adc $$0, %rdx
 				or %rdx, %rcx
-				add %rax, $3
 
 				mov $8, %rax
 				mulq $9
 				add %rax, $3
-				adc $$0, %rdx
 				or %rdx, %rcx
 
 				cmpq $$0, %rcx
@@ -408,6 +413,10 @@ mod h256tests {
         let (result, _) = mul([::std::u64::MAX, 0, 0, 0], [::std::u64::MAX, ::std::u64::MAX, 0, 0]);
         assert_eq!([1, ::std::u64::MAX, ::std::u64::MAX-1, 0], result);
 
+        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, 0, 0],
+							  [::std::u64::MAX, ::std::u64::MAX, 0, 0]);
+        assert_eq!([1, 0, ::std::u64::MAX-1, ::std::u64::MAX], result);
+
         let (result, _) = mul([::std::u64::MAX, 0, 0, 0], [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]);
         assert_eq!([1, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX-1], result);
 
@@ -420,6 +429,14 @@ mod h256tests {
         let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX], [::std::u64::MAX, 0, 0, 0]);
         assert_eq!([1, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX], result);
 
+        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0],
+							  [::std::u64::MAX, ::std::u64::MAX, 0, 0]);
+        assert_eq!([1, 0, ::std::u64::MAX, ::std::u64::MAX-1], result);
+
+        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, 0, 0],
+							  [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]);
+        assert_eq!([1, 0, ::std::u64::MAX, ::std::u64::MAX-1], result);
+
         let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX],
                               [::std::u64::MAX, ::std::u64::MAX, 0, 0]);
         assert_eq!([1, 0, ::std::u64::MAX, ::std::u64::MAX], result);
@@ -427,14 +444,6 @@ mod h256tests {
         let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, 0, 0],
 							  [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]);
         assert_eq!([1, 0, ::std::u64::MAX, ::std::u64::MAX], result);
-
-        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, 0, 0],
-							  [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]);
-        assert_eq!([1, 0, ::std::u64::MAX, ::std::u64::MAX-1], result);
-
-        let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0],
-							  [::std::u64::MAX, ::std::u64::MAX, 0, 0]);
-        assert_eq!([1, 0, ::std::u64::MAX, ::std::u64::MAX-1], result);
 
         let (result, _) = mul([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0],
 							  [::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]);
